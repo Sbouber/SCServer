@@ -154,7 +154,7 @@ public class SCClient implements SCMessageListener {
         public synchronized void run() {
             while(true) {
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(1000);
                 } catch(InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -163,7 +163,11 @@ public class SCClient implements SCMessageListener {
                     System.out.print("Input for " + myUser);
                     String input = new BufferedReader(new InputStreamReader(System.in)).readLine();
                     System.out.println(input);
-                } catch(IOException e) {
+                    String[] tokens = input.split("|");
+                    if(tokens.length == 2) {
+                        msgQueue.add(new Message(myUser, tokens[0], null, Integer.parseInt(tokens[1]), null));
+                    }
+                } catch(Exception e) {
                     e.printStackTrace();
                 }
 
