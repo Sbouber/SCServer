@@ -1,3 +1,5 @@
+package org.opencv.samples.facedetect;
+
 import java.io.Serializable;
 import java.sql.Timestamp;
 
@@ -6,6 +8,8 @@ import java.sql.Timestamp;
  * Note that this class is not written to be extended.
  */
 public class Message implements Serializable {
+
+    static final long serialVersionUID = 42L;
 
     public static final int MSG_JOIN = 0;
     public static final int MSG_ACKJOIN = 1;
@@ -23,12 +27,12 @@ public class Message implements Serializable {
     public static final int MSG_LEFT = 13;
 
     public final int type;
-    public final Object frame;
+    public final int[] frame;
     public final String from;
     public final String to;
     public final long time;
 
-    public Message(String from, String to, Object frame, int type, long time) {
+    public Message(String from, String to, int[] frame, int type, long time) {
         this.from = from;
         this.to = to;
         this.type = type;

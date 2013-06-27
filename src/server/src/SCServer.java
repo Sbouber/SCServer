@@ -1,3 +1,5 @@
+import org.opencv.samples.facedetect.Message;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -100,8 +102,8 @@ class ClientThread implements Runnable {
     private String otheruser;
     private boolean connected;
     private boolean shuttingDown;
-
-    boolean sending;
+    private boolean blinked;
+    private long blinktime;
 
 
     public ClientThread(Socket clientSocket, Map<String, ClientThread> connectedClients) {
@@ -139,11 +141,11 @@ class ClientThread implements Runnable {
         if(otheruser != null) {
             ClientThread t = connectedClients.get(otheruser);
             if(t != null) {
-                Message m = new Message(myuser, otheruser, null, Message.MSG_ENDGAME, null);
+                Message m = new Message(myuser, otheruser, null, Message.MSG_ENDGAME, 0);
                 t.write(m);
             }
         }
-        broadcast(new Message(myuser, otheruser, null, Message.MSG_LEFT, null));
+        broadcast(new Message(myuser, otheruser, null, Message.MSG_LEFT, 0));
 
         if(myuser != null) {
             connectedClients.remove(myuser);
@@ -162,7 +164,7 @@ class ClientThread implements Runnable {
             is = new ObjectInputStream(clientSocket.getInputStream());
 
             while (true) {
-                if(!clientSocket.isConnected()) {
+                if(!clientSocket.isConnected() || clientSocket.isClosed()) {
                     shutdown();
                     break;
                 }
@@ -171,6 +173,7 @@ class ClientThread implements Runnable {
                 if(o instanceof Message) {
                     Message m = (Message)o;
                     System.out.println("[" + m.from + "->" + m.to + " " + m.type + "]");
+
                     switch(m.type) {
                         case Message.MSG_JOIN:
                             if(myuser != null) {
@@ -178,7 +181,7 @@ class ClientThread implements Runnable {
                             } else if(m.from != null) {
                                 myuser = m.from;
                                 connectedClients.put(myuser, this);
-                                broadcast(new Message(myuser, otheruser, null, Message.MSG_JOIN, null));
+                                broadcast(new Message(myuser, otheruser, null, Message.MSG_JOIN, 0));
                             } else {
                                 debug("M.FROM == NULL");
                             }
@@ -197,11 +200,32 @@ class ClientThread implements Runnable {
                             }
                             break;
                         case Message.MSG_SENDF:
+                            write(m);
                             if(m.to != null && connectedClients.containsKey(m.to)) {
                                 otheruser = m.to;
                                 ClientThread t = connectedClients.get(m.to);
                                 t.write(m);
                             }
+                            break;
+                        case Message.MSG_SENDBLINK:
+                            if(m.to != null && connectedClients.containsKey(m.to)) {
+                                synchronized(this) {
+                                    ClientThread t = connectedClients.get(m.to);
+                                    blinked = true;
+                                    blinktime = m.time;
+                                    if(t.blinked) {
+                                        ClientThread winner = t.blinktime > blinktime ? t : this;
+                                        ClientThread loser = winner == this ? t : this;
+                                        this.blinked = false;
+                                        t.blinked = false;
+                                        winner.write(new Message(loser.myuser, winner.myuser, null, Message.MSG_WON, loser.blinktime));
+                                        loser.write(new Message(winner.myuser, loser.myuser, null, Message.MSG_LOST, winner.blinktime));
+                                    }
+                                }
+
+                            }
+                            break;
+
                         default:
                             break;
                     }
