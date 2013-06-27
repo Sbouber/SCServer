@@ -23,17 +23,17 @@ public class Message implements Serializable {
     public static final int MSG_LEFT = 13;
 
     public final int type;
-    public final byte[] frame;
+    public final Object frame;
     public final String from;
     public final String to;
-    public final Timestamp timeStamp;
+    public final long time;
 
-    public Message(String from, String to, byte[] frame, int type, Timestamp timeStamp) {
+    public Message(String from, String to, Object frame, int type, long time) {
         this.from = from;
         this.to = to;
         this.type = type;
         this.frame = frame;
-        this.timeStamp = timeStamp;
+        this.time = time;
     }
 
 }
