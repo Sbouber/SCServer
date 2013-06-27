@@ -100,7 +100,6 @@ public class SCClient implements SCMessageListener {
     @Override
     public void onPlayerJoined(String player) {
         debug("onPlayerJoined " + player);
-        sendRequest(player);
     }
 
     @Override
@@ -112,7 +111,6 @@ public class SCClient implements SCMessageListener {
     public void onGameRequest(String player) {
         debug("onGameRequest " + player);
         otherUser = player;
-        acceptRequest(player);
     }
 
     @Override
@@ -151,7 +149,7 @@ public class SCClient implements SCMessageListener {
     }
 
     private class SCTerminalReader implements Runnable {
-        public synchronized void run() {
+        public void run() {
             while(true) {
                 try {
                     Thread.sleep(1000);
@@ -162,11 +160,8 @@ public class SCClient implements SCMessageListener {
                 try {
                     System.out.print("Input for " + myUser);
                     String input = new BufferedReader(new InputStreamReader(System.in)).readLine();
-                    System.out.println(input);
-                    String[] tokens = input.split("|");
-                    if(tokens.length == 2) {
-                        msgQueue.add(new Message(myUser, tokens[0], null, Integer.parseInt(tokens[1]), null));
-                    }
+                    msgQueue.add(new Message(myUser, input.substring(1), null, Integer.parseInt(input.substring(0, 1)), null));
+                    System.out.println("added");
                 } catch(Exception e) {
                     e.printStackTrace();
                 }
@@ -244,6 +239,13 @@ public class SCClient implements SCMessageListener {
                 try {
                     Message m = null;
                     if(!msgQueue.isEmpty() && (m = msgQueue.poll()) != null) {
+                        if(m.type == Message.MSG_SENDF) {
+                            byte[] bytes = new byte[10000];
+                            for(int i = 0; i < 10000; i++) {
+                                bytes[i] = 66;
+                            }
+                            Message m2 = new Message(m.from, m.to, bytes, Message.MSG_SENDF, null);
+                        }
                         os.writeObject(m);
                         os.flush();
                     }

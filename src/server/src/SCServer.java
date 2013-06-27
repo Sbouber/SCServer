@@ -122,6 +122,7 @@ class ClientThread implements Runnable {
                 Object o = is.readObject();
                 if(o instanceof Message) {
                     Message m = (Message)o;
+                    System.out.println("[" + m.from + "->" + m.to + " " + m.type + "]");
                     switch(m.type) {
                         case Message.MSG_JOIN:
                             if(myuser != null) {
@@ -145,6 +146,15 @@ class ClientThread implements Runnable {
                                 ClientThread t = connectedClients.get(m.to);
                                 t.setOtherUser(myuser);
                                 t.write(m);
+                            }
+                            break;
+                        case Message.MSG_SENDF:
+                            if(m.to != null && connectedClients.containsKey(m.to)) {
+                                otheruser = m.to;
+                                ClientThread t = connectedClients.get(m.to);
+                                if(otheruser == t.myuser && t.otheruser == myuser) {
+                                    t.write(m);
+                                }
                             }
                         default:
                             break;
