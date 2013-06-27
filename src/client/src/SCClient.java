@@ -1,6 +1,7 @@
 
 import java.io.*;
 import java.net.Socket;
+import java.sql.Timestamp;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class SCClient implements SCMessageListener {
@@ -36,10 +37,12 @@ public class SCClient implements SCMessageListener {
            return;
         }
 
+        msgQueue = new ConcurrentLinkedQueue<Message>();
+
         new Thread(new SCClientReader()).start();
         new Thread(new SCClientWriter()).start();
+        msgQueue.add(new Message(myUser, otherUser, null, Message.MSG_JOIN, null));
 
-        msgQueue = new ConcurrentLinkedQueue<Message>();
         init = true;
     }
 
@@ -69,6 +72,10 @@ public class SCClient implements SCMessageListener {
 
     public void sendFrame(byte[] frame) {
         msgQueue.add(new Message(myUser, otherUser, frame, Message.MSG_SENDF, null));
+    }
+
+    public void sendBlink(Timestamp t) {
+        msgQueue.add(new Message(myUser, otherUser, null, Message.MSG_SENDBLINK, t));
     }
 
     public void acceptRequest(String player) {
@@ -103,6 +110,7 @@ public class SCClient implements SCMessageListener {
     @Override
     public void onGameRequest(String player) {
         debug("onGameRequest " + player);
+        otherUser = player;
         acceptRequest(player);
     }
 
@@ -214,12 +222,10 @@ public class SCClient implements SCMessageListener {
                     }
                 } catch(Exception e) {
                     e.printStackTrace();
-                    debug("1");
                     listener.onConnectionClosed();
                     break;
                 }
             }
-            debug("2");
             listener.onConnectionClosed();
         }
     }

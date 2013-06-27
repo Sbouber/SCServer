@@ -7,14 +7,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SCServer implements Runnable {
 
     public static final int PORT = 8888;
-    public static final String HOST = "localhost";
-    public static final int MAX_CLIENTS = 10;
 
     private ServerSocket serverSocket;
     private Socket clientSocket;
     private Map<String, ClientThread> connectedClients;
-
-    private final ClientThread[] threads = new ClientThread[MAX_CLIENTS];
 
     public SCServer() {
         connectedClients = new ConcurrentHashMap<String, ClientThread>();
@@ -28,24 +24,13 @@ public class SCServer implements Runnable {
 
     @Override
     public void run() {
-        debug("Started listening at " + HOST + ":" + PORT);
+        debug("Started listening at port " + PORT);
         while (true) {
-            if(connectedClients.size() >= MAX_CLIENTS) {
-                debug("MAX CLIENTS!");
-                continue;
-            }
-
             try {
                 clientSocket = serverSocket.accept();
-                for (int i = 0; i < MAX_CLIENTS; i++) {
-                    if (threads[i] == null) {
-                        debug("New client connected");
-                        ClientThread client = new ClientThread(clientSocket, connectedClients);
-                        threads[i] = client;
-                        new Thread(client).start();
-                        break;
-                    }
-                }
+                debug("New client connected");
+                ClientThread client = new ClientThread(clientSocket, connectedClients);
+                new Thread(client).start();
             } catch (IOException e) {
                 System.out.println(e);
             }
@@ -66,6 +51,7 @@ class ClientThread implements Runnable {
     private String myuser;
     private String otheruser;
     boolean connected;
+    boolean shuttingDown;
 
     boolean sending;
 
@@ -89,12 +75,19 @@ class ClientThread implements Runnable {
             os.writeObject(m);
             os.flush();
         } catch(IOException e) {
-            e.printStackTrace();
+            if(!shuttingDown) {
+                shutdown();
+            }
         }
+    }
+
+    private synchronized void setOtherUser(String otherUser) {
+        this.otheruser = otherUser;
     }
 
     private void shutdown() {
         debug("SHUTDOWN");
+        shuttingDown = true;
         if(otheruser != null) {
             ClientThread t = connectedClients.get(otheruser);
             if(t != null) {
@@ -111,7 +104,7 @@ class ClientThread implements Runnable {
         try {
             clientSocket.close();
         } catch(IOException e) {
-            e.printStackTrace();
+
         }
     }
 
@@ -128,7 +121,6 @@ class ClientThread implements Runnable {
 
                 Object o = is.readObject();
                 if(o instanceof Message) {
-                    debug("GOT A MSG");
                     Message m = (Message)o;
                     switch(m.type) {
                         case Message.MSG_JOIN:
@@ -138,11 +130,22 @@ class ClientThread implements Runnable {
                                 myuser = m.from;
                                 connectedClients.put(myuser, this);
                                 broadcast(new Message(myuser, otheruser, null, Message.MSG_JOIN, null));
-                                debug("JOINED");
                             } else {
                                 debug("M.FROM == NULL");
                             }
                             break;
+                        case Message.MSG_REQGAME:
+                            if(m.to != null && connectedClients.containsKey(m.to)) {
+                                connectedClients.get(m.to).write(m);
+                            }
+                            break;
+                        case Message.MSG_ACKREQ:
+                            if(m.to != null && connectedClients.containsKey(m.to)) {
+                                otheruser = m.to;
+                                ClientThread t = connectedClients.get(m.to);
+                                t.setOtherUser(myuser);
+                                t.write(m);
+                            }
                         default:
                             break;
                     }
@@ -151,7 +154,7 @@ class ClientThread implements Runnable {
                 }
             }
         } catch (Exception e) {
-           shutdown();
+            shutdown();
         }
     }
 
