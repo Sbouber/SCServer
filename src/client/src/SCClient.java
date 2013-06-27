@@ -21,7 +21,7 @@ public class SCClient implements SCMessageListener {
 
     private final SCMessageListener listener;
 
-    public SCClient(String myUser, SCMessageListener listener) {
+    public SCClient(String myUser, SCMessageListener listener, String host) {
         this.myUser = myUser;
 
         //todo assign listener
@@ -29,7 +29,7 @@ public class SCClient implements SCMessageListener {
         this.listener = this;
 
         try {
-            clientSocket = new Socket(HOST, PORT);
+            clientSocket = new Socket(host, PORT);
             clientSocket.setTcpNoDelay(true);
             os = new ObjectOutputStream(clientSocket.getOutputStream());
             is = new ObjectInputStream(clientSocket.getInputStream());
