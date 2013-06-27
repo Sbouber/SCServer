@@ -41,6 +41,7 @@ public class SCClient implements SCMessageListener {
 
         new Thread(new SCClientReader()).start();
         new Thread(new SCClientWriter()).start();
+        new Thread(new SCTerminalReader()).start();
         msgQueue.add(new Message(myUser, otherUser, null, Message.MSG_JOIN, null));
 
         init = true;
@@ -147,6 +148,28 @@ public class SCClient implements SCMessageListener {
     @Override
     public void onGameStart() {
         debug("onGameStart");
+    }
+
+    private class SCTerminalReader implements Runnable {
+        public synchronized void run() {
+            while(true) {
+                try {
+                    Thread.sleep(100);
+                } catch(InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                try {
+                    System.out.print("Input for " + myUser);
+                    String input = new BufferedReader(new InputStreamReader(System.in)).readLine();
+                    System.out.println(input);
+                } catch(IOException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        }
+
     }
 
     private class SCClientReader implements Runnable {
