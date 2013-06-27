@@ -14,17 +14,19 @@ public class SCServer implements Runnable {
 
     public SCServer() {
         connectedClients = new ConcurrentHashMap<String, ClientThread>();
+    }
 
+    @Override
+    public void run() {
         try {
             serverSocket = new ServerSocket(PORT);
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    @Override
-    public void run() {
         debug("Started listening at port " + PORT);
+
+        new Thread(new ServerCommander(this)).start();
+
         while (true) {
             try {
                 clientSocket = serverSocket.accept();
@@ -32,13 +34,59 @@ public class SCServer implements Runnable {
                 ClientThread client = new ClientThread(clientSocket, connectedClients);
                 new Thread(client).start();
             } catch (IOException e) {
-                System.out.println(e);
+                e.printStackTrace();
             }
         }
     }
 
+    public Map<String, ClientThread> getConnectedClients() {
+        return connectedClients;
+    }
+
     private void debug(String msg) {
         System.out.println("[SERVER MAIN THREAD] " + msg);
+    }
+}
+
+class ServerCommander implements Runnable {
+
+    private final BufferedReader reader;
+    private final SCServer server;
+
+    public ServerCommander(SCServer server) {
+        this.reader = new BufferedReader(new InputStreamReader(System.in));
+        this.server = server;
+    }
+
+    @Override
+    public void run() {
+        try {
+            Thread.sleep(100);
+        } catch(InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            String input = reader.readLine();
+            if(input != null && input.equalsIgnoreCase("shuwdown")) {
+                synchronized(this) {
+                    for(ClientThread c : server.getConnectedClients().values()) {
+                        c.shutdown();
+                    }
+                    System.exit(1);
+                }
+            } else if(input != null && input.equalsIgnoreCase("clients")) {
+                synchronized(this) {
+                    for(String s : server.getConnectedClients().keySet()) {
+                        System.out.println(s);
+                    }
+                }
+            }
+
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }
 
@@ -50,8 +98,8 @@ class ClientThread implements Runnable {
     private final Map<String, ClientThread> connectedClients;
     private String myuser;
     private String otheruser;
-    boolean connected;
-    boolean shuttingDown;
+    private boolean connected;
+    private boolean shuttingDown;
 
     boolean sending;
 
@@ -85,7 +133,7 @@ class ClientThread implements Runnable {
         this.otheruser = otherUser;
     }
 
-    private void shutdown() {
+    public void shutdown() {
         debug("SHUTDOWN");
         shuttingDown = true;
         if(otheruser != null) {
@@ -104,7 +152,7 @@ class ClientThread implements Runnable {
         try {
             clientSocket.close();
         } catch(IOException e) {
-
+            e.printStackTrace();
         }
     }
 
@@ -152,9 +200,7 @@ class ClientThread implements Runnable {
                             if(m.to != null && connectedClients.containsKey(m.to)) {
                                 otheruser = m.to;
                                 ClientThread t = connectedClients.get(m.to);
-                                if(otheruser == t.myuser && t.otheruser == myuser) {
-                                    t.write(m);
-                                }
+                                t.write(m);
                             }
                         default:
                             break;
@@ -164,6 +210,7 @@ class ClientThread implements Runnable {
                 }
             }
         } catch (Exception e) {
+            e.printStackTrace();
             shutdown();
         }
     }
